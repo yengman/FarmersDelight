@@ -1,0 +1,42 @@
+[
+  {
+    "ingredients": [
+      {
+        "item": "minecraft:apple"
+      },
+      {
+        "ore": "bread"
+      },
+      [
+        {"item": "minecraft:wheat"},
+        {"item": "minecraft:cookie"}
+      ]
+    ],
+    "output": {
+      "item": "minecraft:cake",
+      "count": 2
+    },
+    "container": {
+      "item": "minecraft:bucket"
+    },
+    "cookingtime": 200
+  },
+  {
+    "ingredients": [
+      {
+        "item": "minecraft:carrot"
+      },
+      {
+        "item": "minecraft:potato"
+      },
+      [
+        {"item": "minecraft:cooked_beef"},
+        {"item": "minecraft:cooked_chicken"}
+      ]
+    ],
+    "output": {
+      "item": "minecraft:cooked_porkchop"
+    },
+    "cookingtime": 100
+  }
+]
