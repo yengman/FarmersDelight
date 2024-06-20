@@ -14,7 +14,6 @@ public class ClientProxy extends CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
         RenderingRegistry.registerBlockHandler(new RenderCookingPot());
-        // ClientRegistry.bindTileEntitySpecialRenderer(TileCookingPot.class, new RenderTileCookingPot());
     }
 
 }

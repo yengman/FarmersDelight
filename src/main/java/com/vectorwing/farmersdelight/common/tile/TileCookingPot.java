@@ -2,7 +2,10 @@ package com.vectorwing.farmersdelight.common.tile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.stream.IntStream;
 
+import net.minecraft.entity.item.EntityXPOrb;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
@@ -12,22 +15,33 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.MathHelper;
+import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.vectorwing.farmersdelight.Config;
+import com.vectorwing.farmersdelight.client.particle.ModParticles;
+import com.vectorwing.farmersdelight.common.block.IHeatableBlock;
 import com.vectorwing.farmersdelight.common.crafting.CraftingManager;
 import com.vectorwing.farmersdelight.common.crafting.RecipeCookingPot;
+import com.vectorwing.farmersdelight.common.item.ItemBlockCookingPot;
 import com.vectorwing.farmersdelight.common.utility.ItemUtils;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class TileCookingPot extends TileEntity implements ISidedInventory {
+public class TileCookingPot extends TileEntity implements ISidedInventory, IHeatableBlock {
 
     public static final int MEAL_DISPLAY_SLOT = 6;
     public static final int CONTAINER_SLOT = 7;
     public static final int OUTPUT_SLOT = 8;
     private static final int INVENTORY_SIZE = OUTPUT_SLOT + 1;
     private static final int MAX_STACK_SIZE = 64;
+
+    private static final String DEFAULT_INVENTORY_NAME = "container.farmersdelight.cooking_pot";
+
+    private static final int[] TOP_SLOT_ACCESS = IntStream.range(0, MEAL_DISPLAY_SLOT - 1)
+        .toArray();
+    private static final int[] OTHER_SLOT_ACCESS = new int[] { CONTAINER_SLOT, OUTPUT_SLOT };
 
     private ItemStack[] inventory = new ItemStack[INVENTORY_SIZE];
 
@@ -41,6 +55,9 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
     private RecipeCookingPot lastRecipe;
 
     private boolean checkNewRecipe = true;
+
+    // The vanilla furnace stores exp but does not give it on break, only on inventory retrieval (SlotFurnace)
+    private float storedExperience;
 
     @Override
     public void readFromNBT(NBTTagCompound compound) {
@@ -114,15 +131,27 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
             if (didInventoryChange) {
                 markDirty();
             }
-            // TODO CLIENT_SIDE EFFECTS
-        } else if (heated) {
 
+        } else if (heated) {
+            Random random = worldObj.rand;
+            if (random.nextFloat() < 0.2F) {
+                double x = (double) xCoord + 0.5D + (random.nextDouble() * 0.6D - 0.3D);
+                double y = (double) yCoord + 0.7D;
+                double z = (double) zCoord + 0.5D + (random.nextDouble() * 0.6D - 0.3D);
+                ModParticles.spawnBubblePopParticle(worldObj, x, y, z, 0.0D, 0.0D, 0.0D);
+            }
+            if (random.nextFloat() < 0.05F) {
+                double x = (double) xCoord + 0.5D + (random.nextDouble() * 0.4D - 0.2D);
+                double y = (double) yCoord + 0.5D + 0.3D;
+                double z = (double) zCoord + 0.5D + (random.nextDouble() * 0.4D - 0.2D);
+                double motionY = random.nextBoolean() ? 0.015D : 0.005D;
+                ModParticles.spawnSteamParticle(worldObj, x, y, z, 0.0D, motionY, 0.0D);
+            }
         }
     }
 
-    private boolean isHeated() {
-        // TODO
-        return true;
+    public boolean isHeated() {
+        return isHeated(worldObj, xCoord, yCoord, zCoord);
     }
 
     private boolean hasInput() {
@@ -197,7 +226,7 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
             storedMealStack.stackSize += resultStack.stackSize;
         }
 
-        // TODO setRecipeUsed
+        storedExperience += recipe.getExperience();
 
         for (int slot = 0; slot < MEAL_DISPLAY_SLOT; slot++) {
             ItemStack itemStack = inventory[slot];
@@ -205,10 +234,9 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
                 Item item = itemStack.getItem();
                 assert item != null;
                 if (item.hasContainerItem(itemStack)) {
-                    // EJECT ITEM HERE
                     ejectIngredientRemainder(item.getContainerItem(itemStack));
-                } else if (false) {
-                    // TODO INGREDIENT_REMAINDER_OVERRIDES
+                } else if (Config.INGREDIENT_REMAINDER_OVERRIDES.containsKey(item)) {
+                    ejectIngredientRemainder(new ItemStack(Config.INGREDIENT_REMAINDER_OVERRIDES.get(item)));
 
                 }
                 itemStack.stackSize--;
@@ -279,18 +307,20 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
         if (containerItem == null) return false;
         if (mealContainerStack != null) {
             return mealContainerStack.isItemEqual(containerItem);
-        } else {
+        } else if (getMeal() != null) {
             return getMeal().getItem()
                 .getContainerItem() == containerItem.getItem();
         }
+        return false;
     }
 
     private void ejectIngredientRemainder(ItemStack itemStack) {
         int meta = worldObj.getBlockMetadata(xCoord, yCoord, zCoord);
-        ForgeDirection direction = ForgeDirection.getOrientation(meta);
-        double x = xCoord + 0.5D + (direction.offsetX * 0.25D);
+        ForgeDirection direction = ForgeDirection.getOrientation(meta)
+            .getRotation(ForgeDirection.DOWN);
+        double x = xCoord;
         double y = yCoord + 0.7D;
-        double z = zCoord + 0.5D + (direction.offsetZ * 0.25D);
+        double z = zCoord;
         ItemUtils
             .spawnEntityItem(worldObj, itemStack, x, y, z, direction.offsetX * 0.08D, 0.25D, direction.offsetZ * 0.08D);
     }
@@ -308,21 +338,27 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
         return drops;
     }
 
+    public void setMealContainerStack(ItemStack itemStack) {
+        mealContainerStack = itemStack;
+    }
+
     public NBTTagCompound writeMeal() {
         NBTTagCompound compound = new NBTTagCompound();
-        if (getMeal() != null) {
+        ItemStack meal = getMeal();
+        if (meal != null && meal.stackSize > 0) {
             NBTTagCompound nbtTagCompound = new NBTTagCompound();
             NBTTagList nbtTagList = new NBTTagList();
             nbtTagCompound.setByte("Slot", (byte) MEAL_DISPLAY_SLOT);
             inventory[MEAL_DISPLAY_SLOT].writeToNBT(nbtTagCompound);
             nbtTagList.appendTag(nbtTagCompound);
             compound.setTag("Items", nbtTagList);
+            if (mealContainerStack != null) {
+                NBTTagCompound container = new NBTTagCompound();
+                mealContainerStack.writeToNBT(container);
+                compound.setTag("Container", container);
+            }
         }
-        if (mealContainerStack != null) {
-            NBTTagCompound container = new NBTTagCompound();
-            mealContainerStack.writeToNBT(container);
-            compound.setTag("Container", container);
-        }
+
         if (hasCustomInventoryName()) {
             compound.setString("CustomName", customName);
         }
@@ -334,6 +370,61 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
             checkNewRecipe = true;
         }
         markDirty();
+    }
+
+    public void awardExperience(EntityPlayer entityPlayer) {
+        int expTotal = MathHelper.floor_float(storedExperience);
+        float expFraction = storedExperience - (float) expTotal;
+        if (expFraction != 0.0F && Math.random() < (double) expFraction) {
+            expTotal++;
+        }
+        World world = entityPlayer.worldObj;
+        worldObj.spawnEntityInWorld(
+            new EntityXPOrb(world, entityPlayer.posX, entityPlayer.posY + 0.5D, entityPlayer.posZ + 0.5D, expTotal));
+    }
+
+    public ItemStack getContainer() {
+        ItemStack mealStack = getMeal();
+        if (mealStack != null) {
+            return mealContainerStack;
+        }
+        return null;
+    }
+
+    public ItemStack useHeldItemOnMeal(ItemStack container) {
+        if (isContainerValid(container)) {
+            ItemStack mealStack = getMeal();
+            if (mealStack != null) {
+                container.stackSize--;
+                ItemStack portion = mealStack.splitStack(1);
+                if (mealStack.stackSize <= 0) {
+                    inventory[MEAL_DISPLAY_SLOT] = null;
+                }
+                markDirty();
+                return portion;
+            }
+        }
+        return null;
+    }
+
+    public static ItemStack getMealFromItem(ItemStack itemStack) {
+        if (itemStack != null) {
+            Item item = itemStack.getItem();
+            if (item instanceof ItemBlockCookingPot) {
+                NBTTagCompound compound = itemStack.getTagCompound();
+                if (compound.hasKey("Items")) {
+                    NBTTagList items = compound.getTagList("Items", 10);
+                    for (int i = 0; i < items.tagCount(); i++) {
+                        NBTTagCompound nbtTagCompound = items.getCompoundTagAt(i);
+                        byte slot = nbtTagCompound.getByte("Slot");
+                        if(slot == MEAL_DISPLAY_SLOT){
+                            return ItemStack.loadItemStackFromNBT(nbtTagCompound);
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -389,7 +480,7 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
 
     @Override
     public String getInventoryName() {
-        return hasCustomInventoryName() ? customName : "container.cooking_pot";
+        return hasCustomInventoryName() ? customName : DEFAULT_INVENTORY_NAME;
     }
 
     @Override
@@ -419,22 +510,22 @@ public class TileCookingPot extends TileEntity implements ISidedInventory {
 
     @Override
     public boolean isItemValidForSlot(int index, ItemStack stack) {
-        return false;
+        return (index < MEAL_DISPLAY_SLOT || index == CONTAINER_SLOT);
     }
 
     @Override
-    public int[] getAccessibleSlotsFromSide(int p_94128_1_) {
-        return new int[0];
+    public int[] getAccessibleSlotsFromSide(int side) {
+        return side == 1 ? TOP_SLOT_ACCESS : OTHER_SLOT_ACCESS;
     }
 
     @Override
-    public boolean canInsertItem(int p_102007_1_, ItemStack p_102007_2_, int p_102007_3_) {
-        return false;
+    public boolean canInsertItem(int slot, ItemStack p_102007_2_, int side) {
+        return side == 1 ? slot < MEAL_DISPLAY_SLOT : slot == CONTAINER_SLOT;
     }
 
     @Override
-    public boolean canExtractItem(int p_102008_1_, ItemStack p_102008_2_, int p_102008_3_) {
-        return false;
+    public boolean canExtractItem(int slot, ItemStack p_102008_2_, int side) {
+        return side == 1 ? slot < MEAL_DISPLAY_SLOT : slot == OUTPUT_SLOT;
     }
 
     public int getCookTime() {

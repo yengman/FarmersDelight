@@ -7,6 +7,7 @@ import net.minecraft.inventory.ICrafting;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
+import com.vectorwing.farmersdelight.Config;
 import com.vectorwing.farmersdelight.common.tile.TileCookingPot;
 
 import cpw.mods.fml.relauncher.Side;
@@ -75,19 +76,42 @@ public class ContainerCookingPot extends Container {
         int indexOutput = TileCookingPot.OUTPUT_SLOT;
         int startPlayerInv = indexOutput + 1;
         int endPlayerInv = startPlayerInv + 36;
-        ItemStack itemstackCopy = null;
+        ItemStack itemStackCopy = null;
         Slot slot = (Slot) inventorySlots.get(index);
         if (slot != null && slot.getHasStack()) {
             ItemStack itemstack = slot.getStack();
-            itemstackCopy = itemstack.copy();
+            itemStackCopy = itemstack.copy();
             if (index == indexOutput) {
                 if (!mergeItemStack(itemstack, startPlayerInv, endPlayerInv, true)) {
                     return null;
                 }
-                slot.onSlotChange(itemstack, itemstackCopy);
+                slot.onSlotChange(itemstack, itemStackCopy);
             } else if (index > indexOutput) {
-                boolean isValidContainer = false;
-                // todo
+                boolean isValidContainer = Config.CONTAINERS.contains(itemstack.getItem())
+                    || (tileCookingPot.getContainer() != null && tileCookingPot.getContainer()
+                        .getItem() == itemstack.getItem());
+                boolean isListedContainer = Config.CONTAINERS.contains(itemstack.getItem());
+                Slot containerSlot = (Slot) inventorySlots.get(indexContainerInput);
+
+                // attempting to fix odd behavior
+                if (isValidContainer) {
+                    if (containerSlot.getHasStack()) {
+                        if (containerSlot.getStack()
+                            .getItem() == itemstack.getItem()) {
+                            if (!mergeItemStack(itemstack, indexContainerInput, indexContainerInput + 1, false)) {
+                                return null;
+                            }
+                        } else if (!mergeItemStack(itemstack, 0, indexMealDisplay, false)) {
+                            return null;
+                        }
+
+                    } else if (!mergeItemStack(itemstack, indexContainerInput, indexContainerInput + 1, false)) {
+                        return null;
+                    }
+                } else if (!mergeItemStack(itemstack, 0, indexMealDisplay, false)) {
+                    return null;
+                }
+
             } else if (!mergeItemStack(itemstack, startPlayerInv, endPlayerInv, false)) {
                 return null;
             }
@@ -98,13 +122,13 @@ public class ContainerCookingPot extends Container {
                 slot.onSlotChanged();
             }
 
-            if (itemstack.stackSize == itemstackCopy.stackSize) {
+            if (itemstack.stackSize == itemStackCopy.stackSize) {
                 return null;
             }
 
             slot.onPickupFromSlot(player, itemstack);
         }
-        return itemstackCopy;
+        return itemStackCopy;
     }
 
     @Override
@@ -117,7 +141,6 @@ public class ContainerCookingPot extends Container {
     @Override
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
-
         for (Object object : crafters) {
             ICrafting crafter = (ICrafting) object;
 
@@ -130,7 +153,6 @@ public class ContainerCookingPot extends Container {
             }
 
         }
-
         lastCookTime = tileCookingPot.getCookTime();
         lastCookTimeTotal = tileCookingPot.getCookTimeTotal();
     }

@@ -1,8 +1,6 @@
 package com.vectorwing.farmersdelight.common.block;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockContainer;
@@ -12,8 +10,10 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.stats.StatList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
@@ -31,6 +31,8 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 public class BlockCookingPot extends BlockContainer {
 
+    private static final String BLOCK_NAME = "farmersdelight.cooking_pot";
+
     private Random random = new Random();
 
     public IIcon[] icon = new IIcon[3];
@@ -42,10 +44,10 @@ public class BlockCookingPot extends BlockContainer {
     public BlockCookingPot() {
         super(Material.iron);
         setCreativeTab(CreativeTabs.tabBlock);
-        // TODO 0.125F = 1/8
         setBlockBounds(0.125F, 0F, 0.125F, 0.875F, 0.625F, 0.875F);
         setHardness(2.0F);
         setResistance(1.0F);
+        setBlockName(BLOCK_NAME);
     }
 
     @Override
@@ -56,6 +58,22 @@ public class BlockCookingPot extends BlockContainer {
             case 1 -> worldIn.setBlockMetadataWithNotify(x, y, z, 5, 2);
             case 2 -> worldIn.setBlockMetadataWithNotify(x, y, z, 3, 2);
             case 3 -> worldIn.setBlockMetadataWithNotify(x, y, z, 4, 2);
+        }
+        if (itemIn.hasTagCompound()) {
+            TileCookingPot tileCookingPot = (TileCookingPot) worldIn.getTileEntity(x, y, z);
+            tileCookingPot.setMealContainerStack(
+                ItemStack.loadItemStackFromNBT(
+                    itemIn.getTagCompound()
+                        .getCompoundTag("Container")));
+            NBTTagList nbttaglist = itemIn.getTagCompound()
+                .getTagList("Items", 10);
+
+            for (int i = 0; i < nbttaglist.tagCount(); i++) {
+                NBTTagCompound nbtTagCompound = nbttaglist.getCompoundTagAt(i);
+                byte slot = nbtTagCompound.getByte("Slot");
+                if (slot >= 0 && slot < tileCookingPot.getSizeInventory())
+                    tileCookingPot.setInventorySlotContents(slot, ItemStack.loadItemStackFromNBT(nbtTagCompound));
+            }
         }
 
     }
@@ -122,8 +140,6 @@ public class BlockCookingPot extends BlockContainer {
                         dropBlockAsItem(world, x, y, z, drop);
                     }
                 }
-                // TODO this doesn;t work, TE vanishes before meal is read
-
                 return true;
             }
         } else {
@@ -133,19 +149,24 @@ public class BlockCookingPot extends BlockContainer {
 
     @Override
     protected void dropBlockAsItem(World worldIn, int x, int y, int z, ItemStack itemIn) {
-        if (!worldIn.isRemote && worldIn.getGameRules().getGameRuleBooleanValue("doTileDrops") && !worldIn.restoringBlockSnapshots){
+        if (!worldIn.isRemote && worldIn.getGameRules()
+            .getGameRuleBooleanValue("doTileDrops") && !worldIn.restoringBlockSnapshots) {
             if (captureDrops.get()) {
-                capturedDrops.get().add(itemIn);
+                capturedDrops.get()
+                    .add(itemIn);
                 return;
             }
             float f = 0.7F;
-            double d0 = (double)(worldIn.rand.nextFloat() * f) + (double)(1.0F - f) * 0.5D;
-            double d1 = (double)(worldIn.rand.nextFloat() * f) + (double)(1.0F - f) * 0.5D;
-            double d2 = (double)(worldIn.rand.nextFloat() * f) + (double)(1.0F - f) * 0.5D;
-            EntityItem entityitem = new EntityItem(worldIn, (double)x + d0, (double)y + d1, (double)z + d2, itemIn);
+            double d0 = (double) (worldIn.rand.nextFloat() * f) + (double) (1.0F - f) * 0.5D;
+            double d1 = (double) (worldIn.rand.nextFloat() * f) + (double) (1.0F - f) * 0.5D;
+            double d2 = (double) (worldIn.rand.nextFloat() * f) + (double) (1.0F - f) * 0.5D;
+            EntityItem entityitem = new EntityItem(worldIn, (double) x + d0, (double) y + d1, (double) z + d2, itemIn);
             entityitem.delayBeforeCanPickup = 10;
             if (itemIn.hasTagCompound()) {
-                entityitem.getEntityItem().setTagCompound((NBTTagCompound)itemIn.getTagCompound().copy());
+                entityitem.getEntityItem()
+                    .setTagCompound(
+                        (NBTTagCompound) itemIn.getTagCompound()
+                            .copy());
             }
             worldIn.spawnEntityInWorld(entityitem);
         }
@@ -173,10 +194,28 @@ public class BlockCookingPot extends BlockContainer {
     public boolean onBlockActivated(World worldIn, int x, int y, int z, EntityPlayer player, int side, float subX,
         float subY, float subZ) {
         if (!worldIn.isRemote) {
-            player.openGui(FarmersDelight.INSTANCE, ModGuis.GUI_COOKING_POT, worldIn, x, y, z);
+            TileEntity tileEntity = worldIn.getTileEntity(x, y, z);
+            if (tileEntity instanceof TileCookingPot tileCookingPot) {
+                ItemStack heldStack = player.getHeldItem();
+                ItemStack servingStack = tileCookingPot.useHeldItemOnMeal(heldStack);
+                if (servingStack != null) {
+                    InventoryPlayer inventoryPlayer = player.inventory;
+                    if (heldStack.stackSize <= 0) {
+                        inventoryPlayer.mainInventory[player.inventory.currentItem] = null;
+                    }
+                    if (!inventoryPlayer.addItemStackToInventory(servingStack)) {
+                        player.entityDropItem(servingStack, 0);
+                    }
+                    player.inventoryContainer.detectAndSendChanges();
+                } else {
+                    player.openGui(FarmersDelight.INSTANCE, ModGuis.GUI_COOKING_POT, worldIn, x, y, z);
+                }
+            }
         }
         return true;
     }
+
+    //TODO maybe add redstone stuff?
 
     @Override
     public boolean isOpaqueCube() {

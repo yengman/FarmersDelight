@@ -15,10 +15,6 @@ public class CommonProxy {
     // GameRegistry." (Remove if not needed)
     public void preInit(FMLPreInitializationEvent event) {
         Config.registerConfigs(event);
-
-        FarmersDelight.LOG.info(Config.greeting);
-        FarmersDelight.LOG.info("I am " + Tags.MODNAME + " at version " + Tags.VERSION);
-
         ModBlocks.init();
     }
 

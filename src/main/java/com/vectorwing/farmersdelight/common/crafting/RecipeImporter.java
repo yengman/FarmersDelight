@@ -7,17 +7,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-
-import org.apache.commons.lang3.math.NumberUtils;
 
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.vectorwing.farmersdelight.Config;
 import com.vectorwing.farmersdelight.Tags;
-
-import cpw.mods.fml.common.registry.GameRegistry;
+import com.vectorwing.farmersdelight.common.utility.ItemUtils;
 
 public class RecipeImporter {
 
@@ -36,20 +32,21 @@ public class RecipeImporter {
             }
 
         });
-
-        for (File file : files) {
-            try {
-                JsonReader jsonReader = new JsonReader(new FileReader(file));
+        if (files != null) {
+            for (File file : files) {
                 try {
-                    jsonReader.beginArray();
-                    while (jsonReader.hasNext()) {
-                        readJsonRecipe(jsonReader);
+                    JsonReader jsonReader = new JsonReader(new FileReader(file));
+                    try {
+                        jsonReader.beginArray();
+                        while (jsonReader.hasNext()) {
+                            readJsonRecipe(jsonReader);
+                        }
+                    } finally {
+                        jsonReader.close();
                     }
-                } finally {
-                    jsonReader.close();
-                }
-            } catch (IOException e) {
+                } catch (IOException e) {
 
+                }
             }
         }
     }
@@ -86,7 +83,7 @@ public class RecipeImporter {
                         }
                     }
                     jsonReader.endObject();
-                    output = getItemByName(outputName, count);
+                    output = ItemUtils.getItemStackByName(outputName, count);
                     if (output == null) {
                         return;
                     }
@@ -94,7 +91,7 @@ public class RecipeImporter {
                 case "container" -> {
                     jsonReader.beginObject();
                     jsonReader.nextName();
-                    container = getItemByName(jsonReader.nextString());
+                    container = ItemUtils.getItemStackByName(jsonReader.nextString());
                     jsonReader.endObject();
                 }
                 case "cookingtime" -> {
@@ -154,47 +151,12 @@ public class RecipeImporter {
             Object object = null;
             String name = jsonReader.nextName();
             switch (name) {
-                case "item" -> object = getItemByName(jsonReader.nextString());
+                case "item" -> object = ItemUtils.getItemStackByName(jsonReader.nextString());
                 case "ore" -> object = jsonReader.nextString();
             }
             jsonReader.endObject();
             return object;
         }
-    }
-
-    // copied from Nutrition
-    // TODO error messages
-    private static ItemStack getItemByName(String fullName, int count) {
-        String modid;
-        String name;
-        int metadata = 0;
-        // Null check input string
-        if (fullName == null) {
-            return null;
-        }
-        String[] splitName = fullName.split(":");
-        if (splitName.length <= 1) {
-            return null;
-        }
-        modid = splitName[0];
-        name = splitName[1];
-        if (splitName.length > 2) {
-            if (NumberUtils.isNumber(splitName[2])) {
-                metadata = Integer.decode(splitName[2]);
-            } else {
-                return null;
-            }
-        }
-
-        Item item = GameRegistry.findItem(modid, name);
-        if (item == null) {
-            return null;
-        }
-        return new ItemStack(item, count, metadata);
-    }
-
-    private static ItemStack getItemByName(String fullName) {
-        return getItemByName(fullName, 1);
     }
 
 }

@@ -18,8 +18,8 @@ public class GuiHandler implements IGuiHandler {
         TileEntity tileEntity = world.getTileEntity(x, y, z);
         switch (ID) {
             case ModGuis.GUI_COOKING_POT -> {
-                if (tileEntity instanceof TileCookingPot) {
-                    return new ContainerCookingPot(player.inventory, (TileCookingPot) tileEntity);
+                if (tileEntity instanceof TileCookingPot tileCookingPot) {
+                    return new ContainerCookingPot(player.inventory, tileCookingPot);
                 }
             }
         }
@@ -31,8 +31,8 @@ public class GuiHandler implements IGuiHandler {
         TileEntity tileEntity = world.getTileEntity(x, y, z);
         switch (ID) {
             case ModGuis.GUI_COOKING_POT -> {
-                if (tileEntity instanceof TileCookingPot) {
-                    return new GuiCookingPot(player.inventory, (TileCookingPot) tileEntity);
+                if (tileEntity instanceof TileCookingPot tileCookingPot) {
+                    return new GuiCookingPot(player.inventory, tileCookingPot);
                 }
             }
         }
