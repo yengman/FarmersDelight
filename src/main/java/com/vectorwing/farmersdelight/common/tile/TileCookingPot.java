@@ -316,13 +316,13 @@ public class TileCookingPot extends TileEntity implements ISidedInventory, IHeat
 
     private void ejectIngredientRemainder(ItemStack itemStack) {
         int meta = worldObj.getBlockMetadata(xCoord, yCoord, zCoord);
-        ForgeDirection direction = ForgeDirection.getOrientation(meta)
+        ForgeDirection rotation = ForgeDirection.getOrientation(meta)
             .getRotation(ForgeDirection.DOWN);
-        double x = xCoord;
+        double x = xCoord + 0.5D;
         double y = yCoord + 0.7D;
-        double z = zCoord;
+        double z = zCoord + 0.5D;
         ItemUtils
-            .spawnEntityItem(worldObj, itemStack, x, y, z, direction.offsetX * 0.08D, 0.25D, direction.offsetZ * 0.08D);
+            .spawnEntityItem(worldObj, itemStack, x, y, z, rotation.offsetX * 0.08D, 0.25D, rotation.offsetZ * 0.08D);
     }
 
     public List<ItemStack> getDroppableInventory() {
@@ -417,7 +417,7 @@ public class TileCookingPot extends TileEntity implements ISidedInventory, IHeat
                     for (int i = 0; i < items.tagCount(); i++) {
                         NBTTagCompound nbtTagCompound = items.getCompoundTagAt(i);
                         byte slot = nbtTagCompound.getByte("Slot");
-                        if(slot == MEAL_DISPLAY_SLOT){
+                        if (slot == MEAL_DISPLAY_SLOT) {
                             return ItemStack.loadItemStackFromNBT(nbtTagCompound);
                         }
                     }

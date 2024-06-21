@@ -36,7 +36,7 @@ public class Config {
             .getString(
                 "heat_sources",
                 Configuration.CATEGORY_GENERAL,
-                "",
+                "minecraft:lava,minecraft:fire",
                 "comma-separated list of heat source blocks, used for the cooking pot")
             .split(",");
         loadBlocksFromConfig(HEAT_SOURCES, heatSources);
@@ -45,7 +45,7 @@ public class Config {
             .getString(
                 "heat_conductors",
                 Configuration.CATEGORY_GENERAL,
-                "",
+                "minecraft:hopper",
                 "comma-separated list of heat-conducting blocks, used for the cooking pot")
             .split(",");
         loadBlocksFromConfig(HEAT_CONDUCTORS, heatConductors);
@@ -54,7 +54,7 @@ public class Config {
             .getString(
                 "containers",
                 Configuration.CATEGORY_GENERAL,
-                "",
+                "minecraft:bucket,minecraft:bowl",
                 "comma-separated list of containers, used for shift-clicking in the cooking pot")
             .split(",");
 

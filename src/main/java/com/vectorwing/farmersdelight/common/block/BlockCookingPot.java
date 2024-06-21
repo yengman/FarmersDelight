@@ -33,7 +33,7 @@ public class BlockCookingPot extends BlockContainer {
 
     private static final String BLOCK_NAME = "farmersdelight.cooking_pot";
 
-    private Random random = new Random();
+    private final Random random = new Random();
 
     public IIcon[] icon = new IIcon[3];
 
@@ -215,7 +215,7 @@ public class BlockCookingPot extends BlockContainer {
         return true;
     }
 
-    //TODO maybe add redstone stuff?
+    // TODO maybe add redstone stuff?
 
     @Override
     public boolean isOpaqueCube() {
